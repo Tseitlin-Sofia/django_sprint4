@@ -1,35 +1,21 @@
-from django.http import Http404
+import logging
 from datetime import datetime
-from django.db.models import Count
-from django.views.generic import (
-    CreateView, DeleteView, DetailView, ListView, UpdateView
-    )
-from django.core.exceptions import PermissionDenied
-from django.shortcuts import get_object_or_404, redirect, render
-
-from django.core.paginator import Paginator
-
-from .models import Post, Category, User, Comment
-
-from django.contrib.auth.forms import UserChangeForm, UserCreationForm
 
 from django.contrib.auth.decorators import login_required
-
-from django.contrib.auth.mixins import UserPassesTestMixin, LoginRequiredMixin
-
+from django.contrib.auth.forms import PasswordResetForm, UserChangeForm
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.core.mail import send_mail
+from django.core.paginator import Paginator
+from django.db.models import Count
+from django.http import Http404, HttpResponse
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
-
 from django.utils import timezone
+from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
+                                  UpdateView)
 
 from .forms import CommentForm
-
-from django.contrib.auth.forms import PasswordResetForm
-
-from django.core.mail import send_mail
-from django.http import HttpResponse
-
-
-import logging
+from .models import Category, Comment, Post, User
 
 logger = logging.getLogger(__name__)
 
@@ -197,8 +183,8 @@ class PostUpdateView(OnlyAuthorMixin, UpdateView):
         )
 
     def dispatch(self, request, *args, **kwargs):
-        if not request.user.is_authenticated or \
-            self.get_object().author != request.user:
+        if not request.user.is_authenticated \
+                or self.get_object().author != request.user:
             return redirect('blog:post_detail', pk=self.get_object().pk)
         return super().dispatch(request, *args, **kwargs)
 

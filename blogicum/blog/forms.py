@@ -1,7 +1,6 @@
-from .models import Comment, Post, User
 from django import forms
-from django.core.mail import EmailMultiAlternatives
-from django.template import loader
+
+from .models import Comment, Post
 
 
 class CommentForm(forms.ModelForm):
@@ -19,4 +18,4 @@ class PostForm(forms.ModelForm):
 
     class Meta:
         model = Post
-        exclude = ['author',]
+        exclude = ['author', ]
