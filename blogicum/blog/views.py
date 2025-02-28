@@ -2,43 +2,21 @@ import logging
 from datetime import datetime
 
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.forms import PasswordResetForm, UserChangeForm
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.core.mail import send_mail
-from django.core.paginator import Paginator
 from django.db.models import Count
-from django.http import Http404, HttpResponse
+from django.http import Http404
+
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse_lazy
-from django.utils import timezone
+from django.urls import reverse
 from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
                                   UpdateView)
-
-from .forms import CommentForm
+from .forms import CommentForm, PostForm
+from .mixins import OnlyAuthorMixin
 from .models import Category, Comment, Post, User
+from .utils import paginated_pages, send_email_to_admin
 
 logger = logging.getLogger(__name__)
-
-
-QUANTITY_POST = 5
-
-
-class OnlyAuthorMixin(UserPassesTestMixin):
-
-    def test_func(self):
-        object = self.get_object()
-        return object.author == self.request.user
-
-
-def test_email(request):
-    send_mail(
-        'Test Email',
-        'This is a test email.',
-        'from@example.com',
-        ['to@example.com'],
-        fail_silently=False,
-    )
-    return HttpResponse("Test email sent!")
 
 
 def password_reset(request):
@@ -57,8 +35,6 @@ def password_reset(request):
 class PostListView(ListView):
     model = Post
     template_name = 'blog/index.html'
-
-    paginate_by = 10
 
     def get_queryset(self):
         return Post.objects.select_related(
@@ -80,16 +56,20 @@ class PostListView(ListView):
 
 class PostCreateView(LoginRequiredMixin, CreateView):
     model = Post
-    fields = ['title', 'text', 'category', 'location', 'image', 'pub_date']
+    form_class = PostForm
     template_name = 'blog/create.html'
-    login_url = reverse_lazy('login')
+
+    def get_login_url(self):
+        return reverse('login')
 
     def form_valid(self, form):
         form.instance.author = self.request.user
-        return super().form_valid(form)
+        new_post = super().form_valid(form)
+        send_email_to_admin(form.instance, self.request.user)
+        return new_post
 
     def get_success_url(self):
-        return reverse_lazy(
+        return reverse(
             'blog:profile',
             kwargs={'username': self.request.user.username}
         )
@@ -101,7 +81,7 @@ class PostDetailView(DetailView):
 
     def get_context_data(self, **kwargs):
         post = self.object
-        current_time = timezone.now()
+        current_time = datetime.now()
 
         if post.author != self.request.user:
             if not post.is_published or not post.category.is_published:
@@ -130,9 +110,7 @@ def category_posts(request, category_slug):
         is_published=True,
     ).annotate(comment_count=Count('comments'))
     post_list = PostListView().get_queryset().filter(category=category)
-    paginator = Paginator(post_list, 10)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+    page_obj = paginated_pages(post_list, request)
     context = {'page_obj': page_obj, 'category': category}
     return render(request, template, context)
 
@@ -142,9 +120,7 @@ def profile(request, username):
     posts = Post.objects.filter(
         author=user).annotate(
         comment_count=Count('comments')).order_by('-pub_date')
-    paginator = Paginator(posts, 10)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+    page_obj = paginated_pages(posts, request)
     template = 'blog/profile.html'
     context = {
         'page_obj': page_obj,
@@ -177,14 +153,16 @@ class PostUpdateView(OnlyAuthorMixin, UpdateView):
     template_name = 'blog/create.html'
 
     def get_success_url(self):
-        return reverse_lazy(
+        return reverse(
             'blog:post_detail',
             kwargs={'pk': self.object.pk}
         )
 
     def dispatch(self, request, *args, **kwargs):
-        if not request.user.is_authenticated \
-                or self.get_object().author != request.user:
+        if (
+            not request.user.is_authenticated 
+                or self.get_object().author != request.user
+        ):
             return redirect('blog:post_detail', pk=self.get_object().pk)
         return super().dispatch(request, *args, **kwargs)
 
@@ -207,14 +185,15 @@ class CommentUpdateView(OnlyAuthorMixin, UpdateView):
     template_name = 'blog/comment.html'
 
     def get_success_url(self):
-        return reverse_lazy('blog:post_detail',
-                            kwargs={'pk': self.object.post.pk})
+        return reverse('blog:post_detail', kwargs={'pk': self.object.post.pk})
 
 
 class PostDeleteView(OnlyAuthorMixin, DeleteView):
     model = Post
     template_name = 'blog/create.html'
-    success_url = reverse_lazy('blog:list')
+
+    def get_success_url(self):
+        return reverse('blog:list')
 
 
 class CommentDeleteView(OnlyAuthorMixin, DeleteView):
@@ -222,8 +201,7 @@ class CommentDeleteView(OnlyAuthorMixin, DeleteView):
     template_name = 'blog/comment.html'
 
     def get_success_url(self):
-        return reverse_lazy('blog:post_detail',
-                            kwargs={'pk': self.object.post.pk})
+        return reverse('blog:post_detail', kwargs={'pk': self.object.post.pk})
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

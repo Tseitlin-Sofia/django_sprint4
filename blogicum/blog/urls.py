@@ -1,6 +1,7 @@
 from django.contrib.auth import views as auth_views
 from django.urls import path
 
+from . import utils
 from . import views
 
 app_name = 'blog'
@@ -45,5 +46,5 @@ urlpatterns = [
     path('reset/done/',
          auth_views.PasswordResetCompleteView.as_view(),
          name='password_reset_complete'),
-    path('test_email/', views.test_email, name='test_email'),
+    path('send_email/', utils.send_email_to_admin, name='send_email_to_admin'),
 ]

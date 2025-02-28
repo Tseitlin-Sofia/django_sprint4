@@ -11,7 +11,7 @@ class CommentForm(forms.ModelForm):
 
 
 class PostForm(forms.ModelForm):
-    post = forms.DateField(
+    pub_date = forms.DateTimeField(
         label='Дата публикации',
         widget=forms.DateInput(attrs={'type': 'date'}),
     )
