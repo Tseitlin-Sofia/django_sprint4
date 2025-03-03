@@ -160,7 +160,7 @@ class PostUpdateView(OnlyAuthorMixin, UpdateView):
 
     def dispatch(self, request, *args, **kwargs):
         if (
-            not request.user.is_authenticated 
+            not request.user.is_authenticated
                 or self.get_object().author != request.user
         ):
             return redirect('blog:post_detail', pk=self.get_object().pk)
