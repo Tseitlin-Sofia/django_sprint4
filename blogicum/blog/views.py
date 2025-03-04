@@ -6,6 +6,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.forms import PasswordResetForm, UserChangeForm
 from django.db.models import Count
 from django.http import Http404
+from django.utils import timezone
 
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -46,12 +47,21 @@ class PostListView(ListView):
         ).filter(
             is_published=True,
             category__is_published=True,
-            pub_date__lte=datetime.now()
+            pub_date__lte=timezone.now()
         ).annotate(
             comment_count=Count('comments')
         ).order_by(
             '-pub_date'
         )
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        post_list = self.get_queryset()
+        page_obj = paginated_pages(post_list, self.request)
+        context['page_obj'] = page_obj
+        return context
+            
+        
 
 
 class PostCreateView(LoginRequiredMixin, CreateView):
@@ -81,7 +91,7 @@ class PostDetailView(DetailView):
 
     def get_context_data(self, **kwargs):
         post = self.object
-        current_time = datetime.now()
+        current_time = timezone.now()
 
         if post.author != self.request.user:
             if not post.is_published or not post.category.is_published:
