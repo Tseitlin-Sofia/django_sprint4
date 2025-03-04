@@ -2,7 +2,6 @@ from django.core.mail import send_mail
 from django.core.paginator import Paginator
 from django.http import HttpResponse
 
-
 QUANTITY_POST = 10
 
 

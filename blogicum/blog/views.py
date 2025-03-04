@@ -1,17 +1,16 @@
 import logging
-from datetime import datetime
 
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.forms import PasswordResetForm, UserChangeForm
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Count
 from django.http import Http404
-from django.utils import timezone
-
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
                                   UpdateView)
+
 from .forms import CommentForm, PostForm
 from .mixins import OnlyAuthorMixin
 from .models import Category, Comment, Post, User
@@ -60,8 +59,6 @@ class PostListView(ListView):
         page_obj = paginated_pages(post_list, self.request)
         context['page_obj'] = page_obj
         return context
-            
-        
 
 
 class PostCreateView(LoginRequiredMixin, CreateView):

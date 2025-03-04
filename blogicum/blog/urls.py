@@ -1,8 +1,7 @@
 from django.contrib.auth import views as auth_views
 from django.urls import path
 
-from . import utils
-from . import views
+from . import utils, views
 
 app_name = 'blog'
 
